@@ -1,0 +1,52 @@
+name: Deploy to Digital Ocean
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DO_API_TOKEN }}
+      
+      - name: Build container image
+        run: docker build -t registry.digitalocean.com/magnifycash/bot:$(echo $GITHUB_SHA | head -c7) .
+
+      - name: Log in to DO Container Registry
+        run: doctl registry login --expiry-seconds 600
+
+      - name: Push image to DO Container Registry
+        run: |
+          docker push registry.digitalocean.com/magnifycash/bot:$(echo $GITHUB_SHA | head -c7)
+          
+      - name: Update deployment file
+        run: |
+          TAG=$(echo $GITHUB_SHA | head -c7)
+          sed -i 's|<IMAGE>|registry.digitalocean.com/magnifycash/bot:'${TAG}'|' $GITHUB_WORKSPACE/config/deployment.yml
+          
+      - name: Deploy to DO App Platform
+        run: |
+          doctl apps update ${{ secrets.DO_APP_ID }} --spec app.yaml

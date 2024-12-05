@@ -1,0 +1,48 @@
+name: magnifycash-bot-dev
+region: nyc1
+services:
+  - name: bot
+    dockerfile_path: Dockerfile
+    source_dir: /
+    git:
+      branch: main
+      repo_clone_url: ${_self}
+    health_check:
+      http_path: /health
+      port: 3000
+      initial_delay_seconds: 30
+      period_seconds: 60
+      timeout_seconds: 10
+      success_threshold: 1
+      failure_threshold: 3
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    envs:
+      - key: NODE_ENV
+        scope: RUN_TIME
+        value: development
+      - key: TELEGRAM_BOT_TOKEN
+        scope: RUN_TIME
+        value: 7940109705:AAHm3XrCnwCfSMUgkgCSOVEb8X_BFEdwnZs
+      - key: PORT
+        scope: RUN_TIME
+        value: "3000"
+      - key: LOG_LEVEL
+        scope: RUN_TIME
+        value: debug
+      - key: ENABLE_DEBUG_LOGS
+        scope: RUN_TIME
+        value: "true"
+      - key: MONGODB_URI
+        scope: RUN_TIME
+        value: mongodb://localhost:27017/magnifycash
+    build_command: npm run build
+    run_command: npm start
+    http_port: 3000
+
+databases:
+  - engine: MONGODB
+    name: bot-db-dev
+    num_nodes: 1
+    size: db-s-dev-database
+    version: "5"
